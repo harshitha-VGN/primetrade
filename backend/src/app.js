@@ -7,16 +7,17 @@ const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const path = require('path');
 
-const connectDB = require('./config/db');          // ← changed
+const connectDB = require('./config/db');
 const authRoutes = require('./modules/auth/auth.routes');
 const taskRoutes = require('./modules/tasks/tasks.routes');
+const adminRoutes = require('./modules/admin/admin.routes'); // ← NEW
 const { error } = require('./utils/apiResponse');
 
 const app = express();
 
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
@@ -29,6 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/tasks', taskRoutes);
+app.use('/api/v1/admin', adminRoutes); 
 
 try {
   const swaggerDoc = YAML.load(path.join(__dirname, '../swagger.yaml'));
@@ -46,6 +48,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5050;
 
-connectDB().then(() => {                           // ← changed
+connectDB().then(() => {
   app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
 });

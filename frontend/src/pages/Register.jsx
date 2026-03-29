@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
 export default function Register() {
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', adminSecret: '' });
   const [msg, setMsg] = useState(null);
   const [err, setErr] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -91,6 +91,19 @@ export default function Register() {
               </div>
             )}
           </div>
+          <div style={s.field}>
+            <label style={s.label}>
+                Admin Secret <span style={{ color: '#9ca3af', fontWeight: 400 }}>(leave blank for normal account)</span>
+            </label>
+            <input
+                style={s.input}
+                name="adminSecret"
+                type="password"
+                placeholder="Enter admin secret if you have one"
+                value={form.adminSecret || ''}
+                onChange={handle}
+            />
+            </div>
 
           <button style={{ ...s.btn, opacity: loading ? 0.75 : 1 }} disabled={loading} className="fade-up fade-up-4">
             {loading

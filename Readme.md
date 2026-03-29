@@ -28,16 +28,20 @@ npm run dev
 
 Create a `.env` file in `backend/` with:
 
-```env
 PORT=5050
 DATABASE_URL=mongodb://127.0.0.1:27017/primetrade
 JWT_SECRET=replace_with_a_long_random_secret
 JWT_EXPIRES_IN=1d
 CORS_ORIGIN=http://localhost:5173
-```
+ADMIN_SECRET=primetrade@admin123        
 
 API runs at: `http://localhost:5050`  
 Swagger Docs: `http://localhost:5050/api/docs`
+
+## Admin Access
+To register as admin, use the Admin Secret field on the Register page.
+Admin secret is set via `ADMIN_SECRET` in your `.env` file.
+After login, admins are automatically redirected to `/admin`.
 
 ### Frontend
 ```bash
@@ -61,12 +65,17 @@ Frontend runs at: `http://localhost:5173`
 | POST | /api/v1/auth/register | No | - |
 | POST | /api/v1/auth/login | No | - |
 | GET | /api/v1/auth/me | Yes | Any |
-| GET | /api/v1/auth/users | Yes | Admin |
-| POST | /api/v1/tasks | Yes | Any |
 | GET | /api/v1/tasks | Yes | Any |
-| GET | /api/v1/tasks/all | Yes | Admin |
+| POST | /api/v1/tasks | Yes | Any |
 | PUT | /api/v1/tasks/:id | Yes | Owner/Admin |
 | DELETE | /api/v1/tasks/:id | Yes | Owner/Admin |
+| GET | /api/v1/admin/stats | Yes | Admin |
+| GET | /api/v1/admin/users | Yes | Admin |
+| PATCH | /api/v1/admin/users/:id/promote | Yes | Admin |
+| PATCH | /api/v1/admin/users/:id/demote | Yes | Admin |
+| DELETE | /api/v1/admin/users/:id | Yes | Admin |
+| GET | /api/v1/admin/tasks | Yes | Admin |
+| DELETE | /api/v1/admin/tasks/:id | Yes | Admin |
 
 ## Scalability Notes
 

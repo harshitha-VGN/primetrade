@@ -12,19 +12,26 @@ export default function Login() {
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const submit = async (e) => {
-    e.preventDefault();
-    setLoading(true); setErr(null);
-    try {
-      const res = await api.post('/auth/login', form);
-      localStorage.setItem('token', res.data.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.data.user));
+  e.preventDefault();
+  setLoading(true); setErr(null);
+  try {
+    const res = await api.post('/auth/login', form);
+    localStorage.setItem('token', res.data.data.token);
+    localStorage.setItem('user', JSON.stringify(res.data.data.user));
+
+    const role = res.data.data.user.role;
+    if (role === 'admin') {
+      navigate('/admin');
+    } else {
       navigate('/dashboard');
-    } catch (e) {
-      setErr(e.response?.data?.message || 'Login failed. Please try again.');
-    } finally {
-      setLoading(false);
     }
-  };
+
+  } catch (e) {
+    setErr(e.response?.data?.message || 'Login failed. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div style={s.page}>

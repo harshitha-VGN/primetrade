@@ -97,6 +97,11 @@ export default function Dashboard() {
             </div>
           </div>
           <div style={s.headerRight}>
+            {user.role === 'admin' && (
+              <button onClick={() => navigate('/admin')} style={s.adminBtn}>
+                🛡️ Admin Panel
+              </button>
+            )}
             <div style={s.avatar}>{user.name?.charAt(0).toUpperCase()}</div>
             <span style={s.userName}>{user.name}</span>
             <button onClick={logout} style={s.logoutBtn}>
@@ -242,6 +247,7 @@ const s = {
   avatar: { width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg,#5b5fcf,#7c7fe8)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.9rem' },
   userName: { color: '#374151', fontSize: '0.875rem', fontWeight: 500 },
   logoutBtn: { display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#dc2626', borderRadius: '0.6rem', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 600 },
+  adminBtn: { display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', background: 'rgba(239,68,68,0.09)', border: '1px solid rgba(239,68,68,0.22)', color: '#dc2626', borderRadius: '0.6rem', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 600 },
   main: { maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem', position: 'relative', zIndex: 1 },
   statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem', marginBottom: '1.75rem' },
   statCard: { borderRadius: '1rem', padding: '1.25rem 1.5rem', border: '1px solid transparent', display: 'flex', flexDirection: 'column', gap: '0.25rem' },
