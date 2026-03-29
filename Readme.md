@@ -6,10 +6,6 @@ A scalable REST API with JWT authentication, role-based access control, and a mo
 🔒 **[Security Enhanced]** JWT + bcrypt, input validation, CORS preflight handling  
 📚 **[Documentation Complete]** Swagger API docs, setup guide, deliverables checklist
 
-## 📋 Documentation
-
-- **[DELIVERABLES.md](./DELIVERABLES.md)** - Complete feature checklist (✅ ALL REQUIREMENTS MET)
-- **[SUBMISSION_GUIDE.md](./SUBMISSION_GUIDE.md)** - Setup, testing, and submission instructions
 
 ## Tech Stack
 - **Backend**: Node.js, Express.js, MongoDB (Mongoose)
