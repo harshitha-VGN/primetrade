@@ -49,7 +49,7 @@ components:
         message: { type: string }
 
 paths:
-  # ── Auth ──────────────────────────────────────────────────────────────────
+  # ── Auth 
 
   /auth/register:
     post:
@@ -122,7 +122,7 @@ paths:
         '401':
           description: No/invalid token
 
-  # ── Tasks (user scope) ───────────────────────────────────────────────────
+  # ── Tasks (user scope) 
 
   /tasks:
     get:
@@ -194,7 +194,7 @@ paths:
         '200':
           description: Task deleted
 
-  # ── Admin ─────────────────────────────────────────────────────────────────
+  # ── Admin 
 
   /admin/stats:
     get:
