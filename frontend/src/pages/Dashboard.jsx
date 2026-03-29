@@ -2,7 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
-const STATUS_COLORS = { pending: '#f59e0b', in_progress: '#3b82f6', completed: '#22c55e' };
+const STATUS_CONFIG = {
+  pending:     { color: '#d97706', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.25)',  dot: '#f59e0b', label: 'Pending' },
+  in_progress: { color: '#2563eb', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.25)',  dot: '#3b82f6', label: 'In Progress' },
+  completed:   { color: '#059669', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.25)',  dot: '#10b981', label: 'Completed' },
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -10,20 +14,19 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [form, setForm] = useState({ title: '', description: '', status: 'pending' });
   const [editId, setEditId] = useState(null);
-  const [msg, setMsg] = useState(null);
-  const [err, setErr] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [filter, setFilter] = useState('all');
 
-  const flash = (type, text) => {
-    if (type === 'success') { setMsg(text); setErr(null); }
-    else { setErr(text); setMsg(null); }
-    setTimeout(() => { setMsg(null); setErr(null); }, 3000);
+  const showToast = (type, text) => {
+    setToast({ type, text });
+    setTimeout(() => setToast(null), 3000);
   };
 
   const fetchTasks = async () => {
     try {
       const res = await api.get('/tasks');
       setTasks(res.data.data);
-    } catch (e) { flash('error', 'Failed to load tasks'); }
+    } catch (e) { showToast('error', 'Failed to load tasks'); }
   };
 
   useEffect(() => { fetchTasks(); }, []);
@@ -35,118 +38,248 @@ export default function Dashboard() {
     try {
       if (editId) {
         await api.put(`/tasks/${editId}`, form);
-        flash('success', 'Task updated!');
+        showToast('success', 'Task updated!');
         setEditId(null);
       } else {
         await api.post('/tasks', form);
-        flash('success', 'Task created!');
+        showToast('success', 'Task created!');
       }
       setForm({ title: '', description: '', status: 'pending' });
       fetchTasks();
-    } catch (e) { flash('error', e.response?.data?.message || 'Error'); }
+    } catch (e) { showToast('error', e.response?.data?.message || 'Something went wrong'); }
   };
 
   const startEdit = (task) => {
-    setEditId(task.id);
+    setEditId(task._id || task.id);
     setForm({ title: task.title, description: task.description || '', status: task.status });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const cancelEdit = () => { setEditId(null); setForm({ title: '', description: '', status: 'pending' }); };
 
   const deleteTask = async (id) => {
     if (!window.confirm('Delete this task?')) return;
     try {
       await api.delete(`/tasks/${id}`);
-      flash('success', 'Task deleted.');
+      showToast('success', 'Task deleted.');
       fetchTasks();
-    } catch (e) { flash('error', e.response?.data?.message || 'Delete failed'); }
+    } catch (e) { showToast('error', e.response?.data?.message || 'Delete failed'); }
   };
 
-  const logout = () => {
-    localStorage.clear();
-    navigate('/login');
+  const logout = () => { localStorage.clear(); navigate('/login'); };
+
+  const filtered = filter === 'all' ? tasks : tasks.filter(t => t.status === filter);
+  const counts = {
+    all: tasks.length,
+    pending: tasks.filter(t => t.status === 'pending').length,
+    in_progress: tasks.filter(t => t.status === 'in_progress').length,
+    completed: tasks.filter(t => t.status === 'completed').length,
   };
 
   return (
-    <div style={styles.page}>
-      {/* Header */}
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.logo}>PrimeTrade Tasks</h1>
-          <span style={styles.roleTag}>{user.role?.toUpperCase()}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>{user.name}</span>
-          <button onClick={logout} style={styles.logoutBtn}>Logout</button>
-        </div>
-      </div>
+    <div style={s.page}>
+      <div style={s.bgTop} />
 
-      <div style={styles.container}>
-        {msg && <div style={styles.success}>{msg}</div>}
-        {err && <div style={styles.error}>{err}</div>}
+      {toast && (
+        <div style={{ ...s.toast, ...(toast.type === 'success' ? s.toastSuccess : s.toastError) }}>
+          <span>{toast.type === 'success' ? '✓' : '!'}</span>
+          {toast.text}
+        </div>
+      )}
 
-        {/* Task Form */}
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>{editId ? '✏️ Edit Task' : '➕ New Task'}</h2>
-          <form onSubmit={submit} style={styles.form}>
-            <input style={styles.input} name="title" placeholder="Task title" value={form.title} onChange={handle} required />
-            <textarea style={{ ...styles.input, height: '80px', resize: 'vertical' }} name="description" placeholder="Description (optional)" value={form.description} onChange={handle} />
-            <select style={styles.input} name="status" value={form.status} onChange={handle}>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button style={styles.btn} type="submit">{editId ? 'Update Task' : 'Create Task'}</button>
-              {editId && <button style={styles.cancelBtn} type="button" onClick={() => { setEditId(null); setForm({ title: '', description: '', status: 'pending' }); }}>Cancel</button>}
+      <header style={s.header}>
+        <div style={s.headerInner}>
+          <div style={s.logoRow}>
+            <div style={s.logoMark}>PT</div>
+            <div>
+              <span style={s.logoText}>PrimeTrade</span>
+              <span style={s.roleChip}>{user.role?.toUpperCase()}</span>
             </div>
-          </form>
-        </div>
-
-        {/* Task List */}
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>📋 My Tasks ({tasks.length})</h2>
-          {tasks.length === 0 && <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem', fontSize: '0.95rem' }}>No tasks yet. Create one above to get started!</p>}
-          <div style={styles.taskGrid}>
-            {tasks.map((task) => (
-              <div key={task.id} style={styles.taskCard}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                  <h3 style={{ color: '#1f2937', margin: 0, fontSize: '1.05rem', fontWeight: 700, flex: 1 }}>{task.title}</h3>
-                  <span style={{ ...styles.badge, background: STATUS_COLORS[task.status] + '22', color: STATUS_COLORS[task.status], border: `1px solid ${STATUS_COLORS[task.status]}66` }}>
-                    {task.status.replace('_', ' ')}
-                  </span>
-                </div>
-                {task.description && <p style={{ color: '#6b7280', margin: '0.5rem 0', fontSize: '0.85rem', lineHeight: '1.5' }}>{task.description}</p>}
-                <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: '0.75rem 0 0' }}>📅 {new Date(task.created_at).toLocaleDateString()}</p>
-                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
-                  <button style={styles.editBtn} onClick={() => startEdit(task)}>✏️ Edit</button>
-                  <button style={styles.deleteBtn} onClick={() => deleteTask(task.id)}>🗑️ Delete</button>
-                </div>
-              </div>
-            ))}
+          </div>
+          <div style={s.headerRight}>
+            <div style={s.avatar}>{user.name?.charAt(0).toUpperCase()}</div>
+            <span style={s.userName}>{user.name}</span>
+            <button onClick={logout} style={s.logoutBtn}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Logout
+            </button>
           </div>
         </div>
-      </div>
+      </header>
+
+      <main style={s.main}>
+        <div style={s.statsRow}>
+          {[
+            { label: 'Total Tasks',  value: counts.all,         color: '#5b5fcf', bg: 'rgba(91,95,207,0.08)' },
+            { label: 'Pending',      value: counts.pending,     color: '#d97706', bg: 'rgba(245,158,11,0.08)' },
+            { label: 'In Progress',  value: counts.in_progress, color: '#2563eb', bg: 'rgba(59,130,246,0.08)' },
+            { label: 'Completed',    value: counts.completed,   color: '#059669', bg: 'rgba(16,185,129,0.08)' },
+          ].map((stat, i) => (
+            <div key={i} style={{ ...s.statCard, background: stat.bg, borderColor: stat.color + '22' }} className={`fade-up fade-up-${i+1}`}>
+              <span style={{ ...s.statValue, color: stat.color }}>{stat.value}</span>
+              <span style={s.statLabel}>{stat.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={s.grid}>
+          {/* Form */}
+          <div style={s.formCard} className="fade-up fade-up-2">
+            <div style={s.formHeader}>
+              <div style={{ ...s.formIconWrap, background: editId ? 'rgba(59,130,246,0.1)' : 'rgba(91,95,207,0.1)' }}>
+                {editId
+                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b5fcf" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                }
+              </div>
+              <h2 style={s.formTitle}>{editId ? 'Edit Task' : 'New Task'}</h2>
+            </div>
+
+            <form onSubmit={submit} style={s.formBody}>
+              <div style={s.field}>
+                <label style={s.label}>Task Title <span style={{ color: '#ef4444' }}>*</span></label>
+                <input style={s.input} name="title" placeholder="What needs to be done?" value={form.title} onChange={handle} required />
+              </div>
+              <div style={s.field}>
+                <label style={s.label}>Description <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span></label>
+                <textarea style={{ ...s.input, height: '90px', resize: 'vertical', lineHeight: '1.5' }} name="description" placeholder="Add details..." value={form.description} onChange={handle} />
+              </div>
+              <div style={s.field}>
+                <label style={s.label}>Status</label>
+                <div style={s.statusSelect}>
+                  {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                    <button key={key} type="button" onClick={() => setForm({ ...form, status: key })} style={{ ...s.statusOpt, background: form.status === key ? cfg.bg : 'transparent', border: form.status === key ? `1.5px solid ${cfg.border}` : '1.5px solid transparent', color: form.status === key ? cfg.color : '#6b7280', fontWeight: form.status === key ? 600 : 400 }}>
+                      <span style={{ ...s.statusDot, background: cfg.dot }} />
+                      {cfg.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={s.formActions}>
+                <button type="submit" style={{ ...s.btn, background: editId ? 'linear-gradient(135deg,#3b82f6,#2563eb)' : 'linear-gradient(135deg,#5b5fcf,#7c7fe8)', boxShadow: editId ? '0 4px 15px rgba(59,130,246,0.35)' : '0 4px 15px rgba(91,95,207,0.35)' }}>
+                  {editId ? 'Update Task' : 'Create Task'}
+                </button>
+                {editId && <button type="button" onClick={cancelEdit} style={s.cancelBtn}>Cancel</button>}
+              </div>
+            </form>
+          </div>
+
+          {/* Task List */}
+          <div style={s.listSection}>
+            <div style={s.filterRow}>
+              {[
+                { key: 'all',         label: `All (${counts.all})` },
+                { key: 'pending',     label: `Pending (${counts.pending})` },
+                { key: 'in_progress', label: `In Progress (${counts.in_progress})` },
+                { key: 'completed',   label: `Done (${counts.completed})` },
+              ].map(f => (
+                <button key={f.key} onClick={() => setFilter(f.key)} style={{ ...s.filterBtn, ...(filter === f.key ? s.filterActive : {}) }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {filtered.length === 0 ? (
+              <div style={s.empty}>
+                <div style={s.emptyIcon}>📋</div>
+                <p style={s.emptyTitle}>{filter === 'all' ? 'No tasks yet' : `No ${filter.replace('_',' ')} tasks`}</p>
+                <p style={s.emptySub}>{filter === 'all' ? 'Create your first task using the form.' : 'Try a different filter.'}</p>
+              </div>
+            ) : (
+              <div style={s.taskList}>
+                {filtered.map((task, i) => {
+                  const cfg = STATUS_CONFIG[task.status];
+                  const tid = task._id || task.id;
+                  return (
+                    <div key={tid} style={s.taskCard} className={`fade-up fade-up-${Math.min(i+1,4)}`}>
+                      <div style={s.taskTop}>
+                        <div style={{ ...s.taskStatusDot, background: cfg.dot }} />
+                        <h3 style={s.taskTitle}>{task.title}</h3>
+                        <span style={{ ...s.badge, background: cfg.bg, color: cfg.color, borderColor: cfg.border }}>{cfg.label}</span>
+                      </div>
+                      {task.description && <p style={s.taskDesc}>{task.description}</p>}
+                      <div style={s.taskFooter}>
+                        <span style={s.taskDate}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                          {new Date(task.createdAt || task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                        <div style={s.taskActions}>
+                          <button style={s.editBtn} onClick={() => startEdit(task)}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit
+                          </button>
+                          <button style={s.deleteBtn} onClick={() => deleteTask(tid)}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
 
-const styles = {
-  page: { minHeight: '100vh', background: 'linear-gradient(135deg, #f0e6d2 0%, #c8e6f5 50%, #d4f1f4 100%)', fontFamily: "'Inter', -apple-system, sans-serif" },
-  header: { background: 'linear-gradient(90deg, #ffffff 0%, #f5f8fb 100%)', padding: '1.25rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
-  logo: { color: '#6366f1', margin: 0, fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.5px' },
-  roleTag: { fontSize: '0.75rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: '#fff', padding: '0.35rem 0.85rem', borderRadius: '999px', fontWeight: 700 },
-  logoutBtn: { padding: '0.5rem 1.25rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', border: 'none', color: '#fff', borderRadius: '0.6rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, transition: 'all 0.3s ease', boxShadow: '0 4px 12px rgba(239,68,68,0.3)' },
-  container: { maxWidth: '1000px', margin: '0 auto', padding: '2.5rem 1.5rem' },
-  card: { background: 'rgba(255, 255, 255, 0.95)', borderRadius: '1.25rem', padding: '2rem', marginBottom: '2rem', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 8px 32px rgba(0,0,0,0.08)', backdropFilter: 'blur(10px)' },
-  cardTitle: { color: '#1f2937', margin: '0 0 1.5rem', fontSize: '1.35rem', fontWeight: 700, background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
-  form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  input: { padding: '0.9rem 1.25rem', borderRadius: '0.75rem', border: '1px solid #e5e7eb', background: '#f9fafb', color: '#1f2937', fontSize: '0.95rem', width: '100%', boxSizing: 'border-box', transition: 'all 0.3s ease', fontFamily: 'inherit' },
-  btn: { padding: '0.9rem 1.75rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: '#fff', border: 'none', borderRadius: '0.75rem', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 15px rgba(99,102,241,0.4)', transition: 'all 0.3s ease' },
-  cancelBtn: { padding: '0.9rem 1.75rem', background: '#f3f4f6', color: '#6b7280', border: '1px solid #d1d5db', borderRadius: '0.75rem', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.3s ease' },
-  taskGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' },
-  taskCard: { background: 'rgba(255, 255, 255, 0.7)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 15px rgba(0,0,0,0.06)', transition: 'all 0.3s ease', backdropFilter: 'blur(10px)' },
-  badge: { fontSize: '0.75rem', padding: '0.35rem 0.75rem', borderRadius: '999px', fontWeight: 700, whiteSpace: 'nowrap' },
-  editBtn: { padding: '0.5rem 1rem', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, transition: 'all 0.3s ease', boxShadow: '0 2px 8px rgba(59,130,246,0.3)' },
-  deleteBtn: { padding: '0.5rem 1rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, transition: 'all 0.3s ease', boxShadow: '0 2px 8px rgba(239,68,68,0.3)' },
-  success: { background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#fff', padding: '1rem', borderRadius: '0.75rem', marginBottom: '1.5rem', fontWeight: 600, boxShadow: '0 4px 12px rgba(16,185,129,0.3)' },
-  error: { background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#fff', padding: '1rem', borderRadius: '0.75rem', marginBottom: '1.5rem', fontWeight: 600, boxShadow: '0 4px 12px rgba(239,68,68,0.3)' },
+const s = {
+  page: { minHeight: '100vh', background: 'linear-gradient(160deg,#f0e8dc 0%,#e8eef8 40%,#d6eef5 100%)', fontFamily: 'var(--font-body)' },
+  bgTop: { position: 'fixed', top: 0, left: 0, right: 0, height: '320px', background: 'linear-gradient(180deg,rgba(91,95,207,0.06) 0%,transparent 100%)', pointerEvents: 'none', zIndex: 0 },
+  toast: { position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 9999, padding: '0.85rem 1.25rem', borderRadius: '0.85rem', fontSize: '0.9rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.6rem', animation: 'slideDown 0.3s cubic-bezier(.22,1,.36,1)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' },
+  toastSuccess: { background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46' },
+  toastError:   { background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' },
+  header: { background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(200,195,190,0.4)', position: 'sticky', top: 0, zIndex: 100 },
+  headerInner: { maxWidth: '1200px', margin: '0 auto', padding: '0 1.5rem', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  logoRow: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  logoMark: { width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg,#5b5fcf,#7c7fe8)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem' },
+  logoText: { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem', color: '#1a1d3a', letterSpacing: '-0.3px', marginRight: '0.5rem' },
+  roleChip: { fontSize: '0.65rem', fontWeight: 700, background: 'linear-gradient(135deg,#5b5fcf,#7c7fe8)', color: '#fff', padding: '0.2rem 0.55rem', borderRadius: '999px' },
+  headerRight: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  avatar: { width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg,#5b5fcf,#7c7fe8)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.9rem' },
+  userName: { color: '#374151', fontSize: '0.875rem', fontWeight: 500 },
+  logoutBtn: { display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#dc2626', borderRadius: '0.6rem', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 600 },
+  main: { maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem', position: 'relative', zIndex: 1 },
+  statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem', marginBottom: '1.75rem' },
+  statCard: { borderRadius: '1rem', padding: '1.25rem 1.5rem', border: '1px solid transparent', display: 'flex', flexDirection: 'column', gap: '0.25rem' },
+  statValue: { fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, lineHeight: 1 },
+  statLabel: { color: '#6b7280', fontSize: '0.8rem', fontWeight: 500 },
+  grid: { display: 'grid', gridTemplateColumns: '360px 1fr', gap: '1.5rem', alignItems: 'start' },
+  formCard: { background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderRadius: '1.25rem', border: '1px solid rgba(200,195,190,0.4)', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' },
+  formHeader: { padding: '1.5rem 1.75rem 0', display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  formIconWrap: { width: '36px', height: '36px', borderRadius: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  formTitle: { fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 700, color: '#1a1d3a', margin: 0 },
+  formBody: { padding: '1.25rem 1.75rem 1.75rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' },
+  field: { display: 'flex', flexDirection: 'column', gap: '0.4rem' },
+  label: { fontSize: '0.825rem', fontWeight: 600, color: '#374151' },
+  input: { width: '100%', padding: '0.8rem 1rem', borderRadius: '0.75rem', border: '1.5px solid rgba(200,195,190,0.7)', background: 'rgba(255,255,255,0.8)', color: '#1a1d3a', fontSize: '0.9rem', transition: 'all 0.2s ease', boxSizing: 'border-box' },
+  statusSelect: { display: 'flex', flexDirection: 'column', gap: '0.4rem' },
+  statusOpt: { padding: '0.6rem 0.9rem', borderRadius: '0.65rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.55rem', transition: 'all 0.2s', textAlign: 'left' },
+  statusDot: { width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0 },
+  formActions: { display: 'flex', gap: '0.75rem', paddingTop: '0.25rem' },
+  btn: { flex: 1, padding: '0.85rem', color: '#fff', border: 'none', borderRadius: '0.75rem', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' },
+  cancelBtn: { padding: '0.85rem 1.25rem', background: 'rgba(0,0,0,0.04)', border: '1.5px solid rgba(0,0,0,0.08)', color: '#6b7280', borderRadius: '0.75rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500 },
+  listSection: { display: 'flex', flexDirection: 'column', gap: '1rem' },
+  filterRow: { display: 'flex', gap: '0.4rem', flexWrap: 'wrap' },
+  filterBtn: { padding: '0.45rem 0.9rem', borderRadius: '999px', border: '1.5px solid rgba(200,195,190,0.5)', background: 'rgba(255,255,255,0.6)', color: '#6b7280', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer', backdropFilter: 'blur(8px)' },
+  filterActive: { background: '#5b5fcf', borderColor: '#5b5fcf', color: '#fff', boxShadow: '0 2px 10px rgba(91,95,207,0.3)' },
+  empty: { background: 'rgba(255,255,255,0.7)', borderRadius: '1.25rem', padding: '4rem 2rem', textAlign: 'center', border: '1px solid rgba(200,195,190,0.4)' },
+  emptyIcon: { fontSize: '3rem', marginBottom: '1rem' },
+  emptyTitle: { fontFamily: 'var(--font-display)', color: '#1a1d3a', fontWeight: 600, fontSize: '1.1rem', margin: '0 0 0.4rem' },
+  emptySub: { color: '#9ca3af', fontSize: '0.875rem' },
+  taskList: { display: 'flex', flexDirection: 'column', gap: '0.75rem' },
+  taskCard: { background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: '1rem', padding: '1.25rem 1.5rem', border: '1px solid rgba(200,195,190,0.4)', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' },
+  taskTop: { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' },
+  taskStatusDot: { width: '9px', height: '9px', borderRadius: '50%', flexShrink: 0 },
+  taskTitle: { fontFamily: 'var(--font-display)', color: '#1a1d3a', margin: 0, fontSize: '0.975rem', fontWeight: 600, flex: 1 },
+  badge: { fontSize: '0.72rem', padding: '0.25rem 0.65rem', borderRadius: '999px', fontWeight: 600, border: '1px solid', whiteSpace: 'nowrap', flexShrink: 0 },
+  taskDesc: { color: '#6b7280', fontSize: '0.85rem', lineHeight: '1.55', margin: '0 0 0.75rem', paddingLeft: '1.6rem' },
+  taskFooter: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.75rem', borderTop: '1px solid rgba(0,0,0,0.05)' },
+  taskDate: { display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#9ca3af', fontSize: '0.775rem' },
+  taskActions: { display: 'flex', gap: '0.5rem' },
+  editBtn: { display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.38rem 0.85rem', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', color: '#2563eb', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 },
+  deleteBtn: { display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.38rem 0.85rem', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', color: '#dc2626', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 },
 };
